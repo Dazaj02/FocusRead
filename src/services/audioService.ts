@@ -1,17 +1,54 @@
 import * as Speech from 'expo-speech';
 import * as Haptics from 'expo-haptics';
 import { Platform } from 'react-native';
+import { VoiceSpeakerId } from '../types';
+
+export interface SystemVoiceInfo {
+  identifier: string;
+  name: string;
+  language: string;
+  quality?: string;
+}
 
 export class AudioService {
   private static isSpeaking = false;
   private static currentRate = 1.0;
-  private static currentSpeaker = 'Elena';
+  private static cachedVoices: SystemVoiceInfo[] = [];
 
+  /**
+   * Obtiene la lista de voces disponibles en el dispositivo móvil (Android, iOS o Web)
+   */
+  static async getAvailableVoices(): Promise<SystemVoiceInfo[]> {
+    try {
+      if (this.cachedVoices.length > 0) {
+        return this.cachedVoices;
+      }
+      const rawVoices = await Speech.getAvailableVoicesAsync();
+      // Filtrar o priorizar voces en español
+      const spanishVoices = rawVoices.filter(v => v.language.toLowerCase().startsWith('es'));
+      const combined = spanishVoices.length > 0 ? spanishVoices : rawVoices;
+      this.cachedVoices = combined.map(v => ({
+        identifier: v.identifier,
+        name: v.name,
+        language: v.language,
+        quality: (v as any).quality,
+      }));
+      return this.cachedVoices;
+    } catch (e) {
+      console.warn('Error fetching system voices:', e);
+      return [];
+    }
+  }
+
+  /**
+   * Reproduce texto utilizando la voz, velocidad y tono configurados
+   */
   static async speak(
     text: string,
     options?: {
       rate?: number;
-      voice?: string;
+      speaker?: VoiceSpeakerId;
+      voiceIdentifier?: string;
       onDone?: () => void;
       onError?: () => void;
     }
@@ -22,9 +59,24 @@ export class AudioService {
       this.isSpeaking = true;
       this.currentRate = options?.rate || this.currentRate;
 
-      Speech.speak(text, {
-        language: 'es-ES',
-        pitch: 1.0,
+      // Determinación de tono y afinación según perfil de locutor
+      let pitch = 1.0;
+      let language = 'es-ES';
+
+      if (options?.speaker === 'Marcos' || options?.speaker === 'Mateo') {
+        pitch = 0.88; // Tono más grave / masculino
+      } else if (options?.speaker === 'Sofia') {
+        pitch = 1.15; // Tono más juvenil / brillante
+      } else if (options?.speaker === 'Lucia') {
+        pitch = 1.02; // Tono profesional neutro
+      } else {
+        pitch = 0.98; // Elena: Tono sereno y relajante
+      }
+
+      // Parámetros de síntesis
+      const speechOptions: Speech.SpeechOptions = {
+        language,
+        pitch,
         rate: this.currentRate,
         onDone: () => {
           this.isSpeaking = false;
@@ -37,7 +89,13 @@ export class AudioService {
           this.isSpeaking = false;
           options?.onError?.();
         },
-      });
+      };
+
+      if (options?.voiceIdentifier) {
+        speechOptions.voice = options.voiceIdentifier;
+      }
+
+      Speech.speak(text, speechOptions);
     } catch (err) {
       console.warn('Speech error:', err);
       this.isSpeaking = false;

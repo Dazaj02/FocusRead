@@ -43,13 +43,16 @@ export interface UserStats {
   weeklyMinutes?: number[]; // [Lun, Mar, Mie, Jue, Vie, Sab, Dom]
 }
 
+export type VoiceSpeakerId = 'Elena' | 'Marcos' | 'Lucia' | 'Mateo' | 'Sofia';
+
 export interface AppSettings {
   deepSeekApiKey: string;
   targetDurationMinutes: number; // 1.5, 2.5, 3.5
   synthesisDepth: 'essential' | 'keypoints' | 'deep';
   retentionQuizEnabled: boolean;
   glossaryEnabled: boolean;
-  voiceSpeaker: 'Elena' | 'Marcos';
+  voiceSpeaker: VoiceSpeakerId;
+  selectedVoiceIdentifier?: string; // Identificador real del sistema (Expo Speech)
   speechRate: number; // 1.0, 1.25, 1.5, 2.0
   karaokeHighlightEnabled: boolean;
   binauralBeatEnabled: boolean;

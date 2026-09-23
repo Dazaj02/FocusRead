@@ -19,6 +19,8 @@ interface ZenReaderScreenProps {
   currentDoseIndex: number;
   themeMode: ThemeMode;
   speechRate?: number;
+  voiceSpeaker?: import('../types').VoiceSpeakerId;
+  selectedVoiceIdentifier?: string;
   onChangeTheme: (mode: ThemeMode) => void;
   onBack: () => void;
   onCompleteDose: (articleId: string, doseId: string) => void;
@@ -29,6 +31,8 @@ export const ZenReaderScreen: React.FC<ZenReaderScreenProps> = ({
   currentDoseIndex,
   themeMode,
   speechRate = 1.25,
+  voiceSpeaker = 'Elena',
+  selectedVoiceIdentifier,
   onChangeTheme,
   onBack,
   onCompleteDose,
@@ -72,6 +76,8 @@ export const ZenReaderScreen: React.FC<ZenReaderScreenProps> = ({
       setIsPlayingAudio(true);
       AudioService.speak(dose.contentChunk, {
         rate: speechRate,
+        speaker: voiceSpeaker,
+        voiceIdentifier: selectedVoiceIdentifier,
         onDone: () => setIsPlayingAudio(false),
         onError: () => setIsPlayingAudio(false),
       });

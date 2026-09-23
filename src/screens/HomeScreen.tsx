@@ -6,10 +6,9 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
-  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Article, UserStats, MicroDose } from '../types';
+import { Article, UserStats } from '../types';
 import { ThemeColors, ThemeMode, themes } from '../theme/tokens';
 import { AudioService } from '../services/audioService';
 
@@ -38,15 +37,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('Todos');
 
-  // Primer artículo para la tarjeta destacada "Siguiente Dosis Recomendada"
-  const recommendedArticle = articles[0] || null;
-  const doses = recommendedArticle?.microDoses || [];
-  const currentDoseIndex = doses.findIndex(d => !d.isCompleted) !== -1 
-    ? doses.findIndex(d => !d.isCompleted) 
-    : 0;
-  const activeDose = doses[currentDoseIndex] || doses[0];
-
-  const filterChips = ['Todos (4)', 'IA & Tech', 'Productividad', 'Neurociencia', '< 3 min'];
+  const filterChips = [`Todos (${articles.length})`, 'IA & Tech', 'Productividad', 'Neurociencia', '< 3 min'];
 
   const filteredArticles = articles.filter(art => {
     const matchesSearch =
@@ -54,7 +45,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       art.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
       art.author.toLowerCase().includes(searchQuery.toLowerCase());
 
-    if (selectedFilter === 'Todos' || selectedFilter === 'Todos (4)') return matchesSearch;
+    if (selectedFilter === 'Todos' || selectedFilter.startsWith('Todos')) return matchesSearch;
     if (selectedFilter === 'IA & Tech') return matchesSearch && art.category.includes('Tecnología');
     if (selectedFilter === 'Productividad') return matchesSearch && art.category.includes('Productividad');
     if (selectedFilter === 'Neurociencia') return matchesSearch && art.category.includes('Neurociencia');
@@ -64,6 +55,16 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     }
     return matchesSearch;
   });
+
+  // Primer artículo para la tarjeta destacada "Siguiente Dosis Recomendada"
+  const recommendedArticle = filteredArticles[0] || articles[0] || null;
+  const doses = recommendedArticle?.microDoses || [];
+  const currentDoseIndex = doses.findIndex(d => !d.isCompleted) !== -1 
+    ? doses.findIndex(d => !d.isCompleted) 
+    : 0;
+
+  // Otros artículos filtrados (excluyendo el primero si se muestra como destacado)
+  const otherArticles = filteredArticles.filter(a => a.id !== recommendedArticle?.id);
 
   return (
     <ScrollView
@@ -121,7 +122,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           contentContainerStyle={styles.chipsRow}
         >
           {filterChips.map(chip => {
-            const isSelected = selectedFilter === chip || (chip.startsWith('Todos') && selectedFilter === 'Todos');
+            const isSelected = selectedFilter === chip || (chip.startsWith('Todos') && selectedFilter.startsWith('Todos'));
             return (
               <TouchableOpacity
                 key={chip}
@@ -226,7 +227,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               <View style={[styles.timeBadge, { backgroundColor: colors.surfaceContainerHigh }]}>
                 <Ionicons name="time-outline" size={13} color={colors.textSecondary} />
                 <Text style={[styles.timeBadgeText, { color: colors.textSecondary }]}>
-                  {recommendedArticle.microDoses.length} Dosis · 6 min
+                  {recommendedArticle.microDoses.length} Dosis · {Math.round(recommendedArticle.totalReadingTimeSeconds / 60)} min
                 </Text>
               </View>
             </View>
@@ -367,7 +368,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             >
               <Ionicons name="play" size={18} color="#FFFFFF" />
               <Text style={styles.primaryActionBtnText}>
-                Continuar Dosis {currentDoseIndex + 1} (2:30 min)
+                Continuar Dosis {currentDoseIndex + 1} ({Math.round((doses[currentDoseIndex]?.estimatedSeconds || 150) / 60)} min)
               </Text>
             </TouchableOpacity>
 
@@ -378,6 +379,61 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               <Ionicons name="book-outline" size={20} color={colors.text} />
             </TouchableOpacity>
           </View>
+        </View>
+      )}
+
+      {/* 5. Lista de Más Lecturas Disponibles */}
+      {otherArticles.length > 0 && (
+        <View style={styles.moreArticlesSection}>
+          <Text style={[styles.sectionHeading, { color: colors.text, marginBottom: 12 }]}>
+            Más Lecturas Preparadas
+          </Text>
+          {otherArticles.map(art => {
+            const finished = art.microDoses.filter(d => d.isCompleted).length;
+            const total = art.microDoses.length;
+            const pct = Math.round((finished / total) * 100);
+
+            return (
+              <TouchableOpacity
+                key={art.id}
+                style={[styles.smallArticleCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+                activeOpacity={0.85}
+                onPress={() => onSelectArticle(art)}
+              >
+                <View style={styles.smallCardTop}>
+                  <View style={[styles.catBadge, { backgroundColor: colors.surfaceContainer }]}>
+                    <Text style={[styles.catBadgeText, { color: colors.textSecondary }]}>
+                      {art.category.toUpperCase()}
+                    </Text>
+                  </View>
+                  <TouchableOpacity onPress={() => onToggleBookmark(art.id)} style={{ padding: 4 }}>
+                    <Ionicons
+                      name={art.isFavorite ? 'bookmark' : 'bookmark-outline'}
+                      size={18}
+                      color={art.isFavorite ? colors.primaryContainer : colors.textMuted}
+                    />
+                  </TouchableOpacity>
+                </View>
+
+                <Text style={[styles.smallArticleTitle, { color: colors.text }]} numberOfLines={2}>
+                  {art.title}
+                </Text>
+
+                <View style={styles.smallCardBottom}>
+                  <Text style={[styles.smallCardDoses, { color: colors.textSecondary }]}>
+                    {finished}/{total} dosis · {Math.round(art.totalReadingTimeSeconds / 60)} min
+                  </Text>
+                  <TouchableOpacity
+                    style={[styles.smallListenBtn, { backgroundColor: colors.secondaryContainer }]}
+                    onPress={() => onQuickListen(art)}
+                  >
+                    <Ionicons name="play" size={14} color={colors.primaryContainer} />
+                    <Text style={[styles.smallListenText, { color: colors.primaryContainer }]}>Escuchar</Text>
+                  </TouchableOpacity>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
         </View>
       )}
 
@@ -550,6 +606,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderWidth: 1,
     gap: 12,
+    marginBottom: 24,
   },
   cardHeaderRow: {
     flexDirection: 'row',
@@ -709,5 +766,55 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  moreArticlesSection: {
+    gap: 10,
+  },
+  smallArticleCard: {
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    gap: 8,
+  },
+  smallCardTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  catBadge: {
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 5,
+  },
+  catBadgeText: {
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  smallArticleTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    lineHeight: 20,
+  },
+  smallCardBottom: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 2,
+  },
+  smallCardDoses: {
+    fontSize: 12,
+  },
+  smallListenBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+  },
+  smallListenText: {
+    fontSize: 11,
+    fontWeight: '700',
   },
 });

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -10,9 +10,9 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { AppSettings } from '../types';
+import { AppSettings, VoiceSpeakerId } from '../types';
 import { ThemeColors, ThemeMode, themes } from '../theme/tokens';
-import { AudioService } from '../services/audioService';
+import { AudioService, SystemVoiceInfo } from '../services/audioService';
 
 interface SettingsScreenProps {
   settings: AppSettings;
@@ -30,6 +30,16 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   const colors: ThemeColors = themes[themeMode];
   const [apiKeyInput, setApiKeyInput] = useState(settings.deepSeekApiKey || '');
   const [showApiKey, setShowApiKey] = useState(false);
+  const [systemVoices, setSystemVoices] = useState<SystemVoiceInfo[]>([]);
+
+  useEffect(() => {
+    loadSystemVoices();
+  }, []);
+
+  const loadSystemVoices = async () => {
+    const list = await AudioService.getAvailableVoices();
+    setSystemVoices(list);
+  };
 
   const handleSaveApiKey = () => {
     onUpdateSettings({ ...settings, deepSeekApiKey: apiKeyInput.trim() });
@@ -42,15 +52,39 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
     onUpdateSettings({ ...settings, targetDurationMinutes: mins });
   };
 
-  const handleVoiceSelect = (voice: 'Elena' | 'Marcos') => {
+  const handleVoiceSelect = (voiceId: VoiceSpeakerId) => {
     AudioService.triggerHaptic('light');
-    onUpdateSettings({ ...settings, voiceSpeaker: voice });
+    onUpdateSettings({ ...settings, voiceSpeaker: voiceId });
+
+    // Probar la voz seleccionada con una muestra breve
+    const sampleText =
+      voiceId === 'Marcos' || voiceId === 'Mateo'
+        ? 'Hola, soy la voz de enfoque masculino. Listo para leer tus micro-dosis.'
+        : voiceId === 'Sofia'
+        ? 'Hola, soy Sofía. Una voz fresca y ágil para tus lecturas breves.'
+        : voiceId === 'Lucia'
+        ? 'Hola, soy Lucía. Locución profesional clara para concentración total.'
+        : 'Hola, soy Elena. Lectura serena y calmada en modo Zen.';
+
+    AudioService.speak(sampleText, {
+      speaker: voiceId,
+      rate: settings.speechRate,
+      voiceIdentifier: settings.selectedVoiceIdentifier,
+    });
   };
 
   const handleSpeechRateSelect = (rate: number) => {
     AudioService.triggerHaptic('light');
     onUpdateSettings({ ...settings, speechRate: rate });
   };
+
+  const voiceOptions: { id: VoiceSpeakerId; name: string; desc: string; icon: string }[] = [
+    { id: 'Elena', name: 'Elena', desc: 'Serena · Tono Zen', icon: 'woman-outline' },
+    { id: 'Marcos', name: 'Marcos', desc: 'Grave · Enérgico', icon: 'man-outline' },
+    { id: 'Lucia', name: 'Lucía', desc: 'Clara · Académica', icon: 'school-outline' },
+    { id: 'Mateo', name: 'Mateo', desc: 'Cálido · Pausado', icon: 'person-outline' },
+    { id: 'Sofia', name: 'Sofía', desc: 'Brillante · Dinámica', icon: 'sparkles-outline' },
+  ];
 
   return (
     <ScrollView
@@ -217,67 +251,96 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
         </View>
       </View>
 
-      {/* 3. Experiencia de Audio y Voz Zen */}
+      {/* 3. Experiencia de Audio y Selección de Voces (Neuro-TTS) */}
       <View style={[styles.cardSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <View style={styles.sectionHeaderRow}>
           <View style={styles.sectionTitleRow}>
             <Ionicons name="headset-outline" size={19} color={colors.tertiaryContainer} />
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Audio y Voz Zen</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Voces y Narración Zen</Text>
           </View>
           <View style={[styles.ttsBadge, { backgroundColor: colors.tertiaryFixed }]}>
-            <Text style={[styles.ttsBadgeText, { color: colors.tertiaryContainer }]}>NEURO-TTS</Text>
+            <Text style={[styles.ttsBadgeText, { color: colors.tertiaryContainer }]}>5 VOCES IA</Text>
           </View>
         </View>
 
-        {/* Selector de Voz */}
+        {/* Selector de Perfil de Voz */}
         <View style={styles.settingField}>
-          <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Voz de lectura sintética</Text>
-          <View style={styles.voiceCardsRow}>
-            <TouchableOpacity
-              style={[
-                styles.voiceCard,
-                {
-                  backgroundColor: settings.voiceSpeaker === 'Elena' ? colors.secondaryContainer : colors.surfaceContainerLow,
-                  borderColor: settings.voiceSpeaker === 'Elena' ? colors.primaryContainer : 'transparent',
-                },
-              ]}
-              onPress={() => handleVoiceSelect('Elena')}
-            >
-              <View style={styles.voiceCardHeader}>
-                <Text style={[styles.voiceName, { color: colors.text }]}>Elena</Text>
-                <Ionicons
-                  name={settings.voiceSpeaker === 'Elena' ? 'checkmark-circle' : 'ellipse-outline'}
-                  size={16}
-                  color={colors.primaryContainer}
-                />
-              </View>
-              <Text style={[styles.voiceDesc, { color: colors.textSecondary }]}>Serena · Tono Neuro</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.voiceCard,
-                {
-                  backgroundColor: settings.voiceSpeaker === 'Marcos' ? colors.secondaryContainer : colors.surfaceContainerLow,
-                  borderColor: settings.voiceSpeaker === 'Marcos' ? colors.primaryContainer : 'transparent',
-                },
-              ]}
-              onPress={() => handleVoiceSelect('Marcos')}
-            >
-              <View style={styles.voiceCardHeader}>
-                <Text style={[styles.voiceName, { color: colors.text }]}>Marcos</Text>
-                <Ionicons
-                  name={settings.voiceSpeaker === 'Marcos' ? 'checkmark-circle' : 'ellipse-outline'}
-                  size={16}
-                  color={colors.primaryContainer}
-                />
-              </View>
-              <Text style={[styles.voiceDesc, { color: colors.textSecondary }]}>Dinámico · Enérgico</Text>
-            </TouchableOpacity>
+          <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>
+            Elige la voz del lector (Toca para escuchar muestra):
+          </Text>
+          <View style={styles.voiceCardsGrid}>
+            {voiceOptions.map(v => {
+              const isSelected = settings.voiceSpeaker === v.id;
+              return (
+                <TouchableOpacity
+                  key={v.id}
+                  style={[
+                    styles.voiceCardItem,
+                    {
+                      backgroundColor: isSelected ? colors.secondaryContainer : colors.surfaceContainerLow,
+                      borderColor: isSelected ? colors.primaryContainer : 'transparent',
+                    },
+                  ]}
+                  onPress={() => handleVoiceSelect(v.id)}
+                >
+                  <View style={styles.voiceCardHeader}>
+                    <View style={styles.voiceTitleRow}>
+                      <Ionicons name={v.icon as any} size={15} color={colors.primaryContainer} />
+                      <Text style={[styles.voiceName, { color: colors.text }]}>{v.name}</Text>
+                    </View>
+                    <Ionicons
+                      name={isSelected ? 'checkmark-circle' : 'ellipse-outline'}
+                      size={16}
+                      color={colors.primaryContainer}
+                    />
+                  </View>
+                  <Text style={[styles.voiceDesc, { color: colors.textSecondary }]}>{v.desc}</Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
         </View>
 
-        {/* Velocidad */}
+        {/* Voces Detectadas del Sistema (Opcional si están disponibles) */}
+        {systemVoices.length > 0 && (
+          <View style={[styles.settingField, { marginTop: 4 }]}>
+            <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>
+              Motor nativo del sistema ({systemVoices.length} instaladas):
+            </Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
+              {systemVoices.slice(0, 5).map(sv => {
+                const isCurrentSystem = settings.selectedVoiceIdentifier === sv.identifier;
+                return (
+                  <TouchableOpacity
+                    key={sv.identifier}
+                    style={[
+                      styles.sysVoiceChip,
+                      {
+                        backgroundColor: isCurrentSystem ? colors.primaryContainer : colors.surfaceContainerLow,
+                      },
+                    ]}
+                    onPress={() => {
+                      AudioService.triggerHaptic('light');
+                      onUpdateSettings({ ...settings, selectedVoiceIdentifier: sv.identifier });
+                      AudioService.speak('Voz nativa seleccionada.', { voiceIdentifier: sv.identifier });
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.sysVoiceText,
+                        { color: isCurrentSystem ? '#FFFFFF' : colors.textSecondary, fontWeight: isCurrentSystem ? '700' : '400' },
+                      ]}
+                    >
+                      {sv.name}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        )}
+
+        {/* Velocidad de Reproducción */}
         <View style={styles.settingField}>
           <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Velocidad de reproducción</Text>
           <View style={[styles.optionsGroup, { backgroundColor: colors.surfaceContainerLow }]}>
@@ -443,11 +506,14 @@ const styles = StyleSheet.create({
   switchTextCol: { flex: 1 },
   switchTitle: { fontSize: 13, fontWeight: '600' },
   switchSubtitle: { fontSize: 11, marginTop: 1 },
-  voiceCardsRow: { flexDirection: 'row', gap: 10 },
-  voiceCard: { flex: 1, borderRadius: 10, padding: 10, borderWidth: 1, gap: 2 },
+  voiceCardsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  voiceCardItem: { width: '48%', borderRadius: 10, padding: 10, borderWidth: 1.5, gap: 2 },
   voiceCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  voiceTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   voiceName: { fontSize: 13, fontWeight: '700' },
   voiceDesc: { fontSize: 10 },
+  sysVoiceChip: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 12 },
+  sysVoiceText: { fontSize: 11 },
   themeModesRow: { flexDirection: 'row', gap: 10 },
   themeModeItem: { flex: 1, borderRadius: 12, padding: 8, alignItems: 'center', gap: 6, position: 'relative' },
   themePreviewBox: { width: '100%', height: 38, borderRadius: 6 },

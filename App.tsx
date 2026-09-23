@@ -90,6 +90,8 @@ export default function App() {
       setIsFloatingAudioPlaying(true);
       AudioService.speak(dose.contentChunk, {
         rate: settings.speechRate,
+        speaker: settings.voiceSpeaker,
+        voiceIdentifier: settings.selectedVoiceIdentifier,
         onDone: () => setIsFloatingAudioPlaying(false),
         onError: () => setIsFloatingAudioPlaying(false),
       });
@@ -108,6 +110,8 @@ export default function App() {
       setIsFloatingAudioPlaying(true);
       AudioService.speak(dose.contentChunk, {
         rate: settings.speechRate,
+        speaker: settings.voiceSpeaker,
+        voiceIdentifier: settings.selectedVoiceIdentifier,
         onDone: () => setIsFloatingAudioPlaying(false),
         onError: () => setIsFloatingAudioPlaying(false),
       });
@@ -185,6 +189,8 @@ export default function App() {
         currentDoseIndex={initialDoseIndex}
         themeMode={themeMode}
         speechRate={settings.speechRate}
+        voiceSpeaker={settings.voiceSpeaker}
+        selectedVoiceIdentifier={settings.selectedVoiceIdentifier}
         onChangeTheme={setThemeMode}
         onBack={() => {
           AudioService.stop();
